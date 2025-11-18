@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:background="@android:color/white"
+    android:layout_width="match_parent"
+    android:layout_height="72dp"
+    android:paddingHorizontal="14dp"
+    android:paddingVertical="0dp">
+
+    <!-- 头像 -->
+    <ImageView
+        android:id="@+id/iv_avatar"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:scaleType="centerCrop"
+        android:src="@drawable/avatar1"
+        android:layout_marginEnd="12dp"/>
+
+    <!-- 昵称和认证区域 -->
+    <LinearLayout
+        android:orientation="vertical"
+        android:layout_width="0dp"
+        android:layout_weight="1"
+        android:layout_height="wrap_content">
+
+        <LinearLayout
+            android:orientation="horizontal"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content">
+
+            <TextView
+                android:id="@+id/tv_name"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="周杰伦"
+                android:textSize="16sp"
+                android:textColor="#222222"
+                android:textStyle="bold"/>
+            <!-- 认证标识 -->
+            <ImageView
+                android:id="@+id/iv_verified"
+                android:layout_width="16dp"
+                android:layout_height="16dp"
+                android:src="@drawable/ic_verified"
+                android:layout_marginStart="4dp"
+                android:visibility="gone"/>
+        </LinearLayout>
+        <!-- 可加备注等 -->
+    </LinearLayout>
+
+    <!-- 已关注按钮 -->
+    <Button
+        android:id="@+id/btn_followed"
+        android:layout_width="66dp"
+        android:layout_height="32dp"
+        android:text="已关注"
+        android:textSize="12sp"
+        android:textColor="#666666"
+        android:background="@drawable/bg_followed_button"
+        android:layout_marginEnd="6dp"
+        android:enabled="false"/>
+
+    <!-- 更多（三点菜单）-->
+    <ImageView
+        android:id="@+id/iv_more"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:src="@drawable/ic_more"
+        android:padding="2dp"/>
+
+</LinearLayout>
