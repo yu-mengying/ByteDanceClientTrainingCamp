@@ -11,7 +11,7 @@
         android:id="@+id/tv_following_count"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="我的关注（12人）"
+        android:text="我的关注"
         android:textSize="14sp"
         android:textColor="#888888"
         android:padding="16dp"

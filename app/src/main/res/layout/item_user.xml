@@ -46,6 +46,21 @@
                 android:src="@drawable/ic_verified"
                 android:layout_marginStart="4dp"
                 android:visibility="gone"/>
+            <!-- 特别关注标签（初始隐藏） -->
+            <TextView
+                android:id="@+id/menu_user_special"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="特别关注"
+                android:textSize="11sp"
+                android:textColor="#9e9e9e"
+                android:background="@drawable/bg_special_label"
+                android:paddingLeft="6dp"
+                android:paddingRight="6dp"
+                android:paddingTop="2dp"
+                android:paddingBottom="2dp"
+                android:layout_marginStart="8dp"
+                android:visibility="gone"/>
         </LinearLayout>
         <!-- 可加备注等 -->
     </LinearLayout>
@@ -53,14 +68,14 @@
     <!-- 已关注按钮 -->
     <Button
         android:id="@+id/btn_followed"
-        android:layout_width="66dp"
-        android:layout_height="32dp"
+        android:layout_width="wrap_content"
+        android:layout_height="36dp"
         android:text="已关注"
         android:textSize="12sp"
         android:textColor="#666666"
         android:background="@drawable/bg_followed_button"
         android:layout_marginEnd="6dp"
-        android:enabled="false"/>
+        android:enabled="true"/>
 
     <!-- 更多（三点菜单）-->
     <ImageView

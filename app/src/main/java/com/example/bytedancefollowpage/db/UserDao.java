@@ -14,6 +14,16 @@ public interface UserDao {
     @Query("SELECT * FROM users WHERE relationType=:type")
     List<User> getUsersByType(String type);
 
+    @Query("SELECT * FROM users WHERE isSpecial = 1")
+    List<User> getSpecialUsers();
+
+    @Query("SELECT * FROM users WHERE isFollowing = 1")
+    List<User> getFollowingUsers();
+
+    //查询关注人数
+    @Query("SELECT COUNT(*) FROM users WHERE isFollowing = 1")
+    int getFollowingCount();
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     void insert(User user);
 

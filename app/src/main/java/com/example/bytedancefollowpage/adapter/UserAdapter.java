@@ -13,6 +13,7 @@ import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.PopupMenu;
+import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -65,8 +66,23 @@ public class UserAdapter extends RecyclerView.Adapter<UserAdapter.UserViewHolder
                 Toast.makeText(v.getContext(), "已选中：" + user.name, Toast.LENGTH_SHORT).show()
         );
 
-        // “已关注”按钮不可点击
-        vh.btnFollowed.setEnabled(false);
+        // “已关注”
+        vh.btnFollowed.setEnabled(true);
+        //点击关注按钮切换样式
+        vh.btnFollowed.setOnClickListener(v -> {
+            if(user.isFollowing){
+                user.isFollowing = false;
+                vh.btnFollowed.setText("关注");
+                vh.btnFollowed.setTextColor("#FFFFFF".equals(vh.btnFollowed.getTextColors().toString()) ? 0xFF000000 : 0xFFFFFFFF);
+                vh.btnFollowed.setBackgroundResource(R.drawable.bg_follow_button);
+            }else{
+                user.isFollowing = true;
+                vh.btnFollowed.setText("已关注");
+                vh.btnFollowed.setTextColor("#000000".equals(vh.btnFollowed.getTextColors().toString()) ? 0xFFFFFFFF : 0xFF000000);
+                vh.btnFollowed.setBackgroundResource(R.drawable.bg_followed_button);
+            }
+
+        });
 
         // 更多（三点）按钮
         vh.ivMore.setOnClickListener(v -> {
@@ -74,6 +90,9 @@ public class UserAdapter extends RecyclerView.Adapter<UserAdapter.UserViewHolder
                 menuClickListener.onMoreClick(user, vh.ivMore);
             }
         });
+
+        vh.ivspecial.setVisibility(user.isSpecial ? View.VISIBLE : View.GONE);
+
     }
 
     @Override
@@ -83,7 +102,7 @@ public class UserAdapter extends RecyclerView.Adapter<UserAdapter.UserViewHolder
 
     static class UserViewHolder extends RecyclerView.ViewHolder {
         ImageView ivAvatar, ivVerified, ivMore;
-        TextView tvName;
+        TextView tvName,ivspecial;
         Button btnFollowed;
 
         UserViewHolder(View itemView) {
@@ -93,6 +112,7 @@ public class UserAdapter extends RecyclerView.Adapter<UserAdapter.UserViewHolder
             ivMore = itemView.findViewById(R.id.iv_more);
             tvName = itemView.findViewById(R.id.tv_name);
             btnFollowed = itemView.findViewById(R.id.btn_followed);
+            ivspecial = itemView.findViewById(R.id.menu_user_special);
         }
     }
 }
