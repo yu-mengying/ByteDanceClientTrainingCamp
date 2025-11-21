@@ -1,0 +1,7 @@
+<resources>
+    <style name="CustomTabText" parent="TextAppearance.Design.Tab">
+        <item name="android:textSize">18sp</item> <!-- 放大字体 -->
+<!--        <item name="android:textStyle">bold</item> &lt;!&ndash; 可选加粗 &ndash;&gt;-->
+        <item name="android:textColor">#222222</item> <!-- 可自定义颜色 -->
+    </style>
+</resources>

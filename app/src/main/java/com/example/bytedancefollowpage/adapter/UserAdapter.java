@@ -3,7 +3,9 @@ package com.example.bytedancefollowpage.adapter;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.bytedancefollowpage.R;
+import com.example.bytedancefollowpage.db.AppDatabase;
 import com.example.bytedancefollowpage.db.User;
+import com.example.bytedancefollowpage.db.UserDao;
 
 import java.util.List;
 
@@ -28,6 +30,8 @@ public class UserAdapter extends RecyclerView.Adapter<UserAdapter.UserViewHolder
     public interface OnUserMenuClickListener {
         void onMoreClick(User user, View anchor);
         // 可扩展：取关/备注/特别关注等
+        void onUnfollowClick(User user);
+        void onfollowClick(User user);
 
     }
 
@@ -52,7 +56,12 @@ public class UserAdapter extends RecyclerView.Adapter<UserAdapter.UserViewHolder
     @Override
     public void onBindViewHolder(@NonNull UserViewHolder vh, int position) {
         User user = userList.get(position);
-        vh.tvName.setText(user.name);
+        if(user.remark!= null && !user.remark.isEmpty()){
+            vh.tvName.setText(user.remark);}
+        else{
+            vh.tvName.setText(user.name);
+        }
+
         vh.ivAvatar.setImageResource(user.avatarResId);
 
         // 显示认证图标
@@ -68,6 +77,17 @@ public class UserAdapter extends RecyclerView.Adapter<UserAdapter.UserViewHolder
 
         // “已关注”
         vh.btnFollowed.setEnabled(true);
+
+        if (user.isFollowing) {
+            vh.btnFollowed.setText("已关注");
+            vh.btnFollowed.setTextColor("#000000".equals(vh.btnFollowed.getTextColors().toString()) ? 0xFFFFFFFF : 0xFF000000);
+            vh.btnFollowed.setBackgroundResource(R.drawable.bg_followed_button);
+        } else {
+            vh.btnFollowed.setText("关注");
+            vh.btnFollowed.setTextColor("#FFFFFF".equals(vh.btnFollowed.getTextColors().toString()) ? 0xFF000000 : 0xFFFFFFFF);
+            vh.btnFollowed.setBackgroundResource(R.drawable.bg_follow_button);
+        }
+
         //点击关注按钮切换样式
         vh.btnFollowed.setOnClickListener(v -> {
             if(user.isFollowing){
@@ -75,11 +95,17 @@ public class UserAdapter extends RecyclerView.Adapter<UserAdapter.UserViewHolder
                 vh.btnFollowed.setText("关注");
                 vh.btnFollowed.setTextColor("#FFFFFF".equals(vh.btnFollowed.getTextColors().toString()) ? 0xFF000000 : 0xFFFFFFFF);
                 vh.btnFollowed.setBackgroundResource(R.drawable.bg_follow_button);
+                if(menuClickListener != null){
+                    menuClickListener.onUnfollowClick(user);
+                }
             }else{
                 user.isFollowing = true;
                 vh.btnFollowed.setText("已关注");
                 vh.btnFollowed.setTextColor("#000000".equals(vh.btnFollowed.getTextColors().toString()) ? 0xFFFFFFFF : 0xFF000000);
                 vh.btnFollowed.setBackgroundResource(R.drawable.bg_followed_button);
+                if(menuClickListener != null){
+                    menuClickListener.onfollowClick(user);
+                }
             }
 
         });

@@ -32,4 +32,12 @@ public interface UserDao {
 
     @Update
     void update(User user);
+
+    @Query("UPDATE users SET remark = :remark WHERE id = :id")
+    void updateRemark(String id, String remark);
+
+    @Query("UPDATE users SET isFollowing = :isFollowing WHERE id = :id")
+    void updateFollowingStatus(String id, boolean isFollowing);
+    @Query("UPDATE users SET isSpecial = :isChecked WHERE id = :id")
+    void updateSpecialStatus(String id, boolean isChecked);
 }
