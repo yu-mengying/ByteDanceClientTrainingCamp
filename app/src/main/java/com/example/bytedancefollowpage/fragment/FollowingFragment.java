@@ -6,7 +6,6 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Switch;
 import android.widget.TextView;
@@ -22,10 +21,8 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 import com.example.bytedancefollowpage.R;
 import com.example.bytedancefollowpage.adapter.UserAdapter;
 import com.example.bytedancefollowpage.db.AppDatabase;
-import com.example.bytedancefollowpage.db.Following;
 import com.example.bytedancefollowpage.db.User;
 import com.example.bytedancefollowpage.db.UserDao;
-import com.example.bytedancefollowpage.db.FollowingDao;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
 
 import java.util.List;
