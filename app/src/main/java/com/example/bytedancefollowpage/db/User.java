@@ -11,6 +11,7 @@ public class User {
     public String id;
     public String name;
     public int avatarResId;    // drawable 资源ID
+    public String avatarUrl;    // 头像URL
     public boolean isSpecial;  // 特别关注
     public boolean isFollowing; // 是否已关注
     public String remark;      // 备注

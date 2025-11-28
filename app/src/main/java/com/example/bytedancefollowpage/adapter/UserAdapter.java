@@ -2,10 +2,13 @@ package com.example.bytedancefollowpage.adapter;
 
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.bumptech.glide.request.RequestOptions;
 import com.example.bytedancefollowpage.R;
 import com.example.bytedancefollowpage.db.AppDatabase;
 import com.example.bytedancefollowpage.db.User;
 import com.example.bytedancefollowpage.db.UserDao;
+import com.bumptech.glide.Glide;
+import com.bumptech.glide.load.engine.DiskCacheStrategy;
 
 import java.util.List;
 
@@ -45,6 +48,18 @@ public class UserAdapter extends RecyclerView.Adapter<UserAdapter.UserViewHolder
         notifyDataSetChanged();
     }
 
+    // 新增append接口，分页数据追加
+    public void append(List<User> newList) {
+        int start = userList.size();
+        userList.addAll(newList);
+        notifyItemRangeInserted(start, newList.size());
+    }
+
+    public void clear() {
+        userList.clear();
+        notifyDataSetChanged();
+    }
+
     @NonNull
     @Override
     public UserViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
@@ -61,8 +76,20 @@ public class UserAdapter extends RecyclerView.Adapter<UserAdapter.UserViewHolder
         else{
             vh.tvName.setText(user.name);
         }
+        // 设置头像
+        //vh.ivAvatar.setImageResource(user.avatarResId);
 
-        vh.ivAvatar.setImageResource(user.avatarResId);
+        // 用Glide异步加载头像
+        Glide.with(vh.ivAvatar.getContext())
+                .load(user.avatarUrl)
+                .apply(RequestOptions.circleCropTransform()) // 这个是关键！
+                .placeholder(R.drawable.avatar1)
+                .error(R.drawable.avatar1)
+                .diskCacheStrategy(DiskCacheStrategy.ALL)
+                .into(vh.ivAvatar);
+
+
+
 
         // 显示认证图标
         if (user.isVerified) {
