@@ -38,9 +38,12 @@ import com.google.android.material.bottomsheet.BottomSheetDialog;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public class FollowingFragment extends Fragment {
+
     private RecyclerView recyclerView;
     private View emptyView;
     private UserAdapter adapter;
@@ -49,11 +52,10 @@ public class FollowingFragment extends Fragment {
 
     private int currentPage = 1;
     private final int pageSize = 10;
-    private int totalUsers = 1000; // mock数据固定
-    private boolean isLoading = false;
+    private int totalUsers = 1000; // mock数据固定，实际根据接口返回赋值
 
-
-
+    private final int MAX_CONCURRENT_PAGE_REQUESTS = 3;
+    private final Set<Integer> loadingPages = new HashSet<>();
     private final OkHttpClient okHttpClient = new OkHttpClient();
 
     @Nullable
@@ -62,13 +64,11 @@ public class FollowingFragment extends Fragment {
                              @Nullable ViewGroup container,
                              @Nullable Bundle savedInstanceState) {
 
-
         View view = inflater.inflate(R.layout.fragment_following, container, false);
         recyclerView = view.findViewById(R.id.recycler_view_following);
         emptyView = view.findViewById(R.id.empty_view);
         followingCount = view.findViewById(R.id.tv_following_count);
         swipeRefreshLayout = view.findViewById(R.id.swipe_refresh);
-
         recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
 
         UserAdapter.OnUserMenuClickListener menuListener = new UserAdapter.OnUserMenuClickListener() {
@@ -76,10 +76,8 @@ public class FollowingFragment extends Fragment {
             public void onMoreClick(User user, View anchor) {
                 showBottomSheetMenu(anchor.getContext(), user);
             }
-
             @Override
             public void onUnfollowClick(User user) {
-                // 取关数据库更新，推荐放子线程
                 new Thread(() -> {
                     UserDao userDao = AppDatabase.getInstance(getContext()).userDao();
                     userDao.updateFollowingStatus(user.id, false);
@@ -87,10 +85,8 @@ public class FollowingFragment extends Fragment {
                 user.isFollowing = false;
                 adapter.notifyDataSetChanged();
             }
-
             @Override
             public void onfollowClick(User user) {
-                // 关注数据库更新，推荐放子线程
                 new Thread(() -> {
                     UserDao userDao = AppDatabase.getInstance(getContext()).userDao();
                     userDao.updateFollowingStatus(user.id, true);
@@ -101,7 +97,6 @@ public class FollowingFragment extends Fragment {
         };
 
         recyclerView.setHasFixedSize(true);
-        recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
         adapter = new UserAdapter(new ArrayList<>(), menuListener);
         recyclerView.setAdapter(adapter);
 
@@ -109,42 +104,41 @@ public class FollowingFragment extends Fragment {
             @Override
             public void onScrolled(@NonNull RecyclerView recyclerView, int dx, int dy) {
                 LinearLayoutManager manager = (LinearLayoutManager) recyclerView.getLayoutManager();
-                if (!isLoading && manager.findLastVisibleItemPosition() >= adapter.getItemCount() - 8 && adapter.getItemCount() < totalUsers) {
-                    fetchUsers(++currentPage);
+                int lastPos = manager.findLastVisibleItemPosition();
+                int itemCount = adapter.getItemCount();
+                // 若滑动接近底部
+                if (itemCount < totalUsers && lastPos >= itemCount - 20) {
+                    // 并发请求后续多页，每页只请求一次
+                    for (int i = 0; i < MAX_CONCURRENT_PAGE_REQUESTS; i++) {
+                        int nextPage = currentPage + i;
+                        if (!loadingPages.contains(nextPage) && nextPage * pageSize <= totalUsers) {
+                            fetchUsers(nextPage);
+                        }
+                    }
                 }
             }
         });
-//        // 先加载空数据，避免空指针
-//        adapter = new UserAdapter(null, menuListener);
-//        recyclerView.setAdapter(adapter);
 
-        fetchUsers(currentPage);
-        fetchUsers(currentPage);
+        fetchUsers(currentPage); // 首次加载第一页
 
-        // 下拉刷新监听
         swipeRefreshLayout.setOnRefreshListener(() -> {
-            //loadData2(); // 重新加载数据
             currentPage = 1;
             adapter.clear();
+            loadingPages.clear();
             fetchUsers(currentPage);
         });
 
-
-//        loadData();
         return view;
     }
 
-
-    private void fetchUsers(int page) {
-        isLoading = true;
+    private synchronized void fetchUsers(int page) {
+        if (loadingPages.contains(page)) return; // 已经请求，跳过
+        loadingPages.add(page);
         swipeRefreshLayout.setRefreshing(true);
-        // mock服务端接口，真实环境用你自己的服务端url
-        String url = "https://c28d68bd-81d4-49f3-b38e-3b25385152c6.mock.pstmn.io/api/users?page=" + page + "&size=" + pageSize;
 
-        Request request = new Request.Builder()
-                .url(url)
-                .get()
-                .build();
+        String url = "https://8589e5ae-741b-4515-9f5e-52f5920a06f7.mock.pstmn.io/api/users?page=" + page + "&size=" + pageSize;
+
+        Request request = new Request.Builder().url(url).get().build();
 
         okHttpClient.newCall(request).enqueue(new Callback() {
             @Override
@@ -152,21 +146,19 @@ public class FollowingFragment extends Fragment {
                 requireActivity().runOnUiThread(() -> {
                     Toast.makeText(getContext(), "网络请求失败", Toast.LENGTH_SHORT).show();
                     swipeRefreshLayout.setRefreshing(false);
-                    isLoading = false;
                 });
+                loadingPages.remove(page);
             }
-
             @Override
             public void onResponse(Call call, Response response) throws IOException {
                 String resp = response.body().string();
                 List<User> users = parseUsers(resp);
                 int count = parseTotalCount(resp);
-
                 requireActivity().runOnUiThread(() -> {
                     adapter.append(users);
                     followingCount.setText("我的关注（ " + (count > 0 ? count : totalUsers) + "人）");
                     swipeRefreshLayout.setRefreshing(false);
-                    isLoading = false;
+
                     if (adapter.getItemCount() == 0) {
                         recyclerView.setVisibility(View.GONE);
                         emptyView.setVisibility(View.VISIBLE);
@@ -174,19 +166,22 @@ public class FollowingFragment extends Fragment {
                         recyclerView.setVisibility(View.VISIBLE);
                         emptyView.setVisibility(View.GONE);
                     }
+                    // 更新当前页
+                    if (page >= currentPage) {
+                        currentPage = page + 1;
+                    }
                 });
+                loadingPages.remove(page);
             }
         });
     }
 
-    // Gson解析
     private List<User> parseUsers(String json) {
         Gson gson = new Gson();
         JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
         JsonArray arr = obj.getAsJsonArray("data");
         return gson.fromJson(arr, new com.google.gson.reflect.TypeToken<List<User>>(){}.getType());
     }
-
     private int parseTotalCount(String json) {
         JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
         if(obj.has("total")) return obj.get("total").getAsInt();
@@ -201,36 +196,30 @@ public class FollowingFragment extends Fragment {
         specialLabel.setVisibility(user.isSpecial ? View.VISIBLE : View.GONE);
         adapter.notifyDataSetChanged();
 
-// 设置数据
-        //如果有备注则显示备注，否则显示名字
+        // 设置数据
         if(user.remark!= null && !user.remark.isEmpty()){
             ((TextView) sheetView.findViewById(R.id.menu_user_name)).setText(user.remark);
             ((TextView) sheetView.findViewById(R.id.menu_user_desc)).setText("用户名：" + user.name +"    抖音号： " + user.id);
         } else{
             ((TextView) sheetView.findViewById(R.id.menu_user_name)).setText(user.name);
             ((TextView) sheetView.findViewById(R.id.menu_user_desc)).setText("抖音号： " + user.id);
-        }// 示例用ID作为描述
+        }
 
-// 特别关注
+        // 特别关注
         Switch specialSwitch = sheetView.findViewById(R.id.menu_special_switch);
         specialSwitch.setChecked(user.isSpecial);
         specialSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            // 更新数据库特别关注状态
             specialLabel.setVisibility(isChecked ? View.VISIBLE : View.GONE);
             adapter.notifyDataSetChanged();
             new Thread(() -> {
                 UserDao userDao = AppDatabase.getInstance(context).userDao();
                 userDao.updateSpecialStatus(user.id, isChecked);
             }).start();
-
-            // 同步User数据&数据库
             user.isSpecial = isChecked;
         });
 
-// 备注编辑
+        // 备注编辑
         sheetView.findViewById(R.id.menu_remark_edit).setOnClickListener(v -> {
-            // 弹出备注编辑对话框
-            // 创建输入框
             EditText editText = new EditText(context);
             editText.setText(user.remark);
             editText.setHint("请输入备注");
@@ -252,14 +241,10 @@ public class FollowingFragment extends Fragment {
                     })
                     .setNegativeButton("取消", null)
                     .show();
-
-
-
         });
 
-// 取消关注
+        // 取消关注
         sheetView.findViewById(R.id.menu_unfollow).setOnClickListener(v -> {
-            // 处理取消关注
             dialog.dismiss();
             user.isFollowing= false;
             adapter.notifyDataSetChanged();
@@ -268,165 +253,9 @@ public class FollowingFragment extends Fragment {
                 UserDao userDao = AppDatabase.getInstance(context).userDao();
                 userDao.updateFollowingStatus(user.id, false);
             }).start();
-
-
-
         });
 
         dialog.setContentView(sheetView);
         dialog.show();
     }
-
-
-
-
-//    private void loadData() {
-//        // 假设你用 Room 数据库
-//        new Thread(() -> {
-//
-//            // 创建测试用户
-//            User user1 = new User();
-//            user1.id = "1";
-//            user1.name = "周杰伦";
-//            user1.avatarResId = R.drawable.avatar1; // 你的头像资源
-//            user1.isVerified = true;
-//            user1.isSpecial = false;
-//            user1.isFollowing = true;
-//            user1.relationType = "following";
-//
-//            User user2 = new User();
-//            user2.id = "2";
-//            user2.name = "林俊杰";
-//            user2.avatarResId = R.drawable.avatar1;
-//            user2.isSpecial = true;
-//            user2.isVerified = true;
-//            user2.isFollowing = true;
-//            user2.relationType = "following";
-//
-//            User user3 = new User();
-//            user3.id = "3";
-//            user3.name = "王力宏";
-//            user3.avatarResId = R.drawable.avatar1;
-//            user3.isSpecial = false;
-//            user3.isVerified = false;
-//            user3.isFollowing = true;
-//            user3.relationType = "following";
-//
-//            User user4 = new User();
-//            user4.id = "4";
-//            user4.name = "蔡依林";
-//            user4.avatarResId = R.drawable.avatar1;
-//            user4.isSpecial = true;
-//            user4.isVerified = true;
-//            user4.isFollowing = true;
-//            user4.relationType = "following";
-//
-//            User user5 = new User();
-//            user5.id = "5";
-//            user5.name = "小明";
-//            user5.avatarResId = R.drawable.avatar1;
-//            user5.isSpecial = false;
-//            user5.isVerified = false;
-//            user5.isFollowing = true;
-//            user5.relationType = "following";
-//
-//
-//// 获取数据库实例和Dao
-//            UserDao userDao = AppDatabase.getInstance(getContext()).userDao();
-//
-//// 插入（放子线程或使用Room的异步API，避免主线程阻塞）
-//            new Thread(() -> {
-//                userDao.insert(user1);
-//                userDao.insert(user2);
-//                userDao.insert(user3);
-//                userDao.insert(user4);
-//                userDao.insert(user5);
-//                // 可以继续插入更多测试用户
-//            }).start();
-//
-//
-//            List<User> followingList = userDao.getFollowingUsers();
-//            int count = userDao.getFollowingCount();
-//
-//
-//            // 回到主线程更新UI
-//            requireActivity().runOnUiThread(() -> {
-//                adapter.update(followingList);
-//                if (followingList == null || followingList.size() == 0) {
-//                    recyclerView.setVisibility(View.GONE);
-//                    emptyView.setVisibility(View.VISIBLE);
-//                } else {
-//                    recyclerView.setVisibility(View.VISIBLE);
-//                    emptyView.setVisibility(View.GONE);
-//                }
-//                followingCount.setText("我的关注（ " + count + "人）");
-//                swipeRefreshLayout.setRefreshing(false); // 加载完成后停止刷新动画
-//            });
-//        }).start();
-//    }
-//
-//
-//    private void loadData2() {
-//        // 假设你用 Room 数据库
-//        new Thread(() -> {
-//
-////            // 创建测试用户
-////            User user1 = new User();
-////            user1.id = "1";
-////            user1.name = "周杰伦";
-////            user1.avatarResId = R.drawable.avatar1; // 你的头像资源
-////            user1.isVerified = true;
-////            user1.isSpecial = false;
-////            user1.isFollowing = true;
-////            user1.relationType = "following";
-////
-////            User user2 = new User();
-////            user2.id = "2";
-////            user2.name = "林俊杰";
-////            user2.avatarResId = R.drawable.avatar1;
-////            user2.isSpecial = true;
-////            user2.isVerified = true;
-////            user2.isFollowing = true;
-////            user2.relationType = "following";
-////
-////            User user3 = new User();
-////            user3.id = "3";
-////            user3.name = "王力宏";
-////            user3.avatarResId = R.drawable.avatar1;
-////            user3.isSpecial = false;
-////            user3.isVerified = false;
-////            user3.isFollowing = true;
-////            user3.relationType = "following";
-//
-//// 获取数据库实例和Dao
-//            UserDao userDao = AppDatabase.getInstance(getContext()).userDao();
-//
-//// 插入（放子线程或使用Room的异步API，避免主线程阻塞）
-////            new Thread(() -> {
-////                userDao.insert(user1);
-////                userDao.insert(user2);
-////                userDao.insert(user3);
-////                // 可以继续插入更多测试用户
-////            }).start();
-//
-//
-//            List<User> followingList = userDao.getFollowingUsers();
-//            int count = userDao.getFollowingCount();
-//
-//
-//            // 回到主线程更新UI
-//            requireActivity().runOnUiThread(() -> {
-//                adapter.update(followingList);
-//                if (followingList == null || followingList.size() == 0) {
-//                    recyclerView.setVisibility(View.GONE);
-//                    emptyView.setVisibility(View.VISIBLE);
-//                } else {
-//                    recyclerView.setVisibility(View.VISIBLE);
-//                    emptyView.setVisibility(View.GONE);
-//                }
-//                followingCount.setText("我的关注（ " + count + "人）");
-//                swipeRefreshLayout.setRefreshing(false); // 加载完成后停止刷新动画
-//            });
-//        }).start();
-//    }
 }
